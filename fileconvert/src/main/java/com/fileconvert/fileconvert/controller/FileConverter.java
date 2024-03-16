@@ -9,6 +9,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,16 +18,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("api/convert")
 public class FileConverter {
 
-    @PostMapping("/convert-to-pdf")
-    public ResponseEntity<ConvertedFile> convertWordToPdf(@RequestParam("file") MultipartFile wordFile) {
+    @PostMapping(value = "/convert-to-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> convertWordToPdf(@RequestParam("file") MultipartFile wordFile) {
         try {
             byte[] pdfData = convertWordToPdfBytes(wordFile.getInputStream());
             ConvertedFile convertedFile = new ConvertedFile("converted.pdf", "application/pdf", pdfData);
-            return ResponseEntity.ok(convertedFile);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF).body(pdfData);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -43,10 +45,16 @@ public class FileConverter {
                 contentStream.beginText();
                 contentStream.setFont(PDType1Font.HELVETICA, 12);
 
+                float y = page.getMediaBox().getHeight() - 50;
+
                 for (XWPFParagraph paragraph : document.getParagraphs()) {
                     for (XWPFRun run : paragraph.getRuns()) {
-                        contentStream.newLineAtOffset(100, 700); // Adjust position as needed
-                        contentStream.showText(run.getText(0));
+                        String text = run.getText(0);
+                        if (text != null) {
+                            contentStream.newLineAtOffset(50, y);
+                            contentStream.showText(text);
+                            y -= 12; // Adjust for next line
+                        }
                     }
                 }
 
